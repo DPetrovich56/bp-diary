@@ -1,0 +1,12 @@
+# Проект Xcode создаётся из project.yml
+*.xcodeproj
+build/
+DerivedData/
+*.xcarchive
+*.ipa
+.DS_Store
+xcuserdata/
+# Ключи и сертификаты никогда не кладём в репозиторий
+*.p8
+*.p12
+*.mobileprovision

@@ -1,0 +1,67 @@
+# Проверочная сборка: компилирует приложение для симулятора iPhone.
+# Учётная запись Apple для неё не нужна.
+name: Проверочная сборка
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Сборка для симулятора
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@v6
+
+      - name: Версия Xcode
+        run: xcodebuild -version
+
+      - name: Установить XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Создать проект Xcode
+        run: xcodegen generate
+
+      - name: Собрать приложение
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project BPDiary.xcodeproj \
+            -scheme BPDiary \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            CODE_SIGNING_ALLOWED=NO \
+            | tee "$RUNNER_TEMP/build.log"
+
+      - name: Показать ошибки компиляции
+        if: failure()
+        run: |
+          {
+            echo "## Ошибки сборки"
+            echo
+            echo '```'
+            grep -E "(error:|fatal error:|\*\* BUILD FAILED \*\*)" "$RUNNER_TEMP/build.log" | sort -u | head -n 150 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Сохранить журнал сборки
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-log
+          path: ${{ runner.temp }}/build.log
+          if-no-files-found: ignore
+          retention-days: 14
