@@ -17,6 +17,8 @@ final class DiaryStore: ObservableObject {
 
     private let fileURL: URL
     private let health = HealthKitService.shared
+    /// Демонстрационный режим: данные-образцы, на диск ничего не пишется.
+    private let isDemo: Bool
 
     private init() {
         let fileManager = FileManager.default
@@ -28,6 +30,15 @@ final class DiaryStore: ObservableObject {
         )) ?? fileManager.temporaryDirectory
         let url = directory.appendingPathComponent("diary.json")
         fileURL = url
+
+        #if DEBUG
+        if let demo = DemoData.requested() {
+            isDemo = true
+            data = demo
+            return
+        }
+        #endif
+        isDemo = false
 
         if let raw = try? Data(contentsOf: url) {
             if let decoded = try? JSONDecoder().decode(DiaryData.self, from: raw) {
@@ -45,6 +56,7 @@ final class DiaryStore: ObservableObject {
     }
 
     private func persist() {
+        if isDemo { return }
         do {
             let encoded = try JSONEncoder().encode(data)
             try encoded.write(

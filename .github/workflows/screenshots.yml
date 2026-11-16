@@ -1,0 +1,127 @@
+# Запускает приложение в симуляторе iPhone с данными-образцами и сохраняет снимки экранов.
+# Нужен для проверки, что приложение запускается и экраны выглядят как задумано.
+# Запуск вручную: вкладка Actions → «Снимки экрана в симуляторе» → Run workflow.
+name: Снимки экрана в симуляторе
+
+on:
+  workflow_dispatch:
+    inputs:
+      runner:
+        description: "Машина для сборки"
+        type: choice
+        default: macos-26-intel
+        options:
+          - macos-26-intel
+          - macos-26
+
+jobs:
+  screenshots:
+    name: Запуск в симуляторе
+    runs-on: ${{ inputs.runner || 'macos-26-intel' }}
+    timeout-minutes: 40
+    env:
+      BUNDLE_ID: com.example.bpdiary
+    steps:
+      - name: Получить исходный код
+        uses: actions/checkout@v6
+
+      - name: Установить XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
+          fi
+
+      - name: Создать проект Xcode
+        run: xcodegen generate
+
+      - name: Выбрать и запустить симулятор
+        run: |
+          xcrun simctl list devices available > "$RUNNER_TEMP/devices.txt"
+          UDID=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          phones = []
+          for runtime, items in devices.items():
+              if "iOS" not in runtime:
+                  continue
+              for item in items:
+                  if item.get("isAvailable") and item["name"].startswith("iPhone"):
+                      phones.append((runtime, item["name"], item["udid"]))
+          phones.sort()
+          preferred = [p for p in phones if "Pro Max" in p[1]] or phones
+          if not preferred:
+              sys.exit("Нет доступных симуляторов iPhone")
+          print(preferred[-1][2])
+          ')
+          echo "Симулятор: $UDID"
+          grep "$UDID" "$RUNNER_TEMP/devices.txt" || true
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 || true
+
+      - name: Собрать приложение
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project BPDiary.xcodeproj \
+            -scheme BPDiary \
+            -configuration Debug \
+            -destination "id=$UDID" \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            | tee "$RUNNER_TEMP/build.log" | tail -n 40
+
+      - name: Запустить и снять экраны
+        run: |
+          APP="$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/BPDiary.app"
+          SHOTS="$RUNNER_TEMP/screenshots"
+          mkdir -p "$SHOTS"
+          xcrun simctl install "$UDID" "$APP"
+          FAILED=0
+
+          shoot() {
+            local name="$1"; shift
+            xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+            sleep 1
+            local output pid
+            output=$(xcrun simctl launch "$UDID" "$BUNDLE_ID" -demoData "$@")
+            pid="${output##*: }"
+            echo "Экран $name: запущен процесс $pid"
+            sleep "${WAIT:-8}"
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "::error::Приложение завершилось на экране «$name»"
+              FAILED=1
+            fi
+            xcrun simctl io "$UDID" screenshot "$SHOTS/$name.png" >/dev/null 2>&1 || true
+          }
+
+          WAIT=20 shoot 00-first-launch -demoOnboarding
+          shoot 01-diary -demoTab diary
+          shoot 02-medications -demoTab medications
+          shoot 03-stats -demoTab stats
+          shoot 04-settings -demoTab settings
+          WAIT=15 shoot 05-new-entry -demoNewEntry
+
+          xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+          ls -l "$SHOTS"
+          exit $FAILED
+
+      - name: Журнал сбоев
+        if: failure()
+        run: |
+          ls -lt ~/Library/Logs/DiagnosticReports 2>/dev/null | head -n 10 || true
+          for report in ~/Library/Logs/DiagnosticReports/BPDiary*; do
+            [ -f "$report" ] || continue
+            echo "=== $report"
+            head -c 20000 "$report"
+          done
+          grep -E "(error:|\*\* BUILD FAILED \*\*)" "$RUNNER_TEMP/build.log" | sort -u | head -n 100 || true
+
+      - name: Сохранить снимки
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots
+          path: ${{ runner.temp }}/screenshots
+          if-no-files-found: ignore
+          retention-days: 14
