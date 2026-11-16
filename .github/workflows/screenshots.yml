@@ -19,6 +19,8 @@ jobs:
     name: Запуск в симуляторе
     runs-on: ${{ inputs.runner || 'macos-26-intel' }}
     timeout-minutes: 40
+    permissions:
+      contents: write
     env:
       BUNDLE_ID: com.example.bpdiary
     steps:
@@ -116,6 +118,22 @@ jobs:
             head -c 20000 "$report"
           done
           grep -E "(error:|\*\* BUILD FAILED \*\*)" "$RUNNER_TEMP/build.log" | sort -u | head -n 100 || true
+
+      # Снимки складываются в отдельную ветку screenshots этого же репозитория:
+      # их можно открыть прямо на сайте GitHub.
+      - name: Опубликовать снимки в ветке screenshots
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd "$RUNNER_TEMP/screenshots" 2>/dev/null || exit 0
+          ls *.png >/dev/null 2>&1 || exit 0
+          git init -q -b screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Снимки экрана для ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" screenshots
 
       - name: Сохранить снимки
         if: always()
