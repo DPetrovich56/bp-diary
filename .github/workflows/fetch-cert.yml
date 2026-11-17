@@ -1,0 +1,31 @@
+# Разовая загрузка корневого сертификата НУЦ Минцифры (нужен для GigaChat API).
+# Сертификат публикуется на Госуслугах; сценарий кладёт его в проект.
+name: Сертификат для GigaChat
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Скачать и проверить сертификат
+        run: |
+          set -e
+          mkdir -p BPDiary/Resources
+          curl -fsSL -o /tmp/root.pem https://gu-st.ru/content/lending/russian_trusted_root_ca_pem.crt
+          openssl x509 -in /tmp/root.pem -noout -subject -issuer -dates -fingerprint -sha256
+          SUBJECT=$(openssl x509 -in /tmp/root.pem -noout -subject)
+          echo "$SUBJECT" | grep -q "Russian Trusted Root CA" || { echo "::error::Неожиданный сертификат"; exit 1; }
+          openssl x509 -in /tmp/root.pem -outform der -out BPDiary/Resources/russian_trusted_root_ca.cer
+          ls -l BPDiary/Resources/russian_trusted_root_ca.cer
+      - name: Добавить в репозиторий
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add BPDiary/Resources/russian_trusted_root_ca.cer
+          git commit -m "Add Russian Trusted Root CA certificate (for GigaChat API)" || exit 0
+          git push
