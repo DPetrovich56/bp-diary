@@ -124,6 +124,9 @@ enum BPCategory: Int, CaseIterable {
 // MARK: - Погода
 
 struct WeatherSnapshot: Codable, Hashable {
+    /// Мокрый снег: в кодах WMO для прогнозов такого нет, используем собственный.
+    static let sleetCode = 1000
+
     /// Температура воздуха, °C
     var temperature: Double
     /// Атмосферное давление на уровне местности, мм рт. ст.
@@ -156,6 +159,7 @@ struct WeatherSnapshot: Codable, Hashable {
         case 85, 86: return "снегопад"
         case 95: return "гроза"
         case 96, 99: return "гроза с градом"
+        case WeatherSnapshot.sleetCode: return "мокрый снег"
         default: return nil
         }
     }
@@ -171,6 +175,7 @@ struct WeatherSnapshot: Codable, Hashable {
         case 61, 63, 65, 66, 67, 80, 81, 82: return "cloud.rain.fill"
         case 71, 73, 75, 77, 85, 86: return "cloud.snow.fill"
         case 95, 96, 99: return "cloud.bolt.rain.fill"
+        case WeatherSnapshot.sleetCode: return "cloud.sleet.fill"
         default: return "cloud.fill"
         }
     }

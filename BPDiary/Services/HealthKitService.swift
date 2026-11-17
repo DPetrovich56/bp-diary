@@ -42,6 +42,16 @@ final class HealthKitService: @unchecked Sendable {
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
+    /// Ошибка «Missing com.apple.developer.healthkit entitlement»: подпись приложения
+    /// не даёт доступа к «Здоровью» (так бывает при установке с бесплатным Apple ID).
+    static func isMissingEntitlement(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        if nsError.domain == HKErrorDomain, nsError.code == HKError.Code.errorAuthorizationDenied.rawValue {
+            return nsError.localizedDescription.lowercased().contains("entitlement")
+        }
+        return nsError.localizedDescription.lowercased().contains("healthkit entitlement")
+    }
+
     var canWriteBloodPressure: Bool {
         guard isAvailable else { return false }
         return store.authorizationStatus(for: systolicType) == .sharingAuthorized

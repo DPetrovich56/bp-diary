@@ -57,6 +57,42 @@ final class LocationProvider: NSObject, CLLocationManagerDelegate {
         }
     }
 
+    /// Поиск города по названию через геокодер Apple (работает без сторонних сервисов).
+    func searchCity(_ name: String) async throws -> [CityResult] {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2 else { return [] }
+        let geocoder = CLGeocoder()
+        let placemarks: [CLPlacemark]
+        do {
+            placemarks = try await geocoder.geocodeAddressString(trimmed)
+        } catch let error as CLError where error.code == .geocodeFoundNoResult {
+            return []
+        }
+        var results: [CityResult] = []
+        var seen = Set<String>()
+        for (index, placemark) in placemarks.enumerated() {
+            guard let location = placemark.location else { continue }
+            let title = placemark.locality ?? placemark.name ?? trimmed
+            let region = [placemark.administrativeArea, placemark.country]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty && $0 != title }
+                .joined(separator: ", ")
+            let key = title + "|" + region
+            if seen.contains(key) { continue }
+            seen.insert(key)
+            results.append(
+                CityResult(
+                    id: index,
+                    name: title,
+                    region: region,
+                    latitude: location.coordinate.latitude,
+                    longitude: location.coordinate.longitude
+                )
+            )
+        }
+        return results
+    }
+
     /// Название населённого пункта для подписи к погоде.
     func placeName(for location: CLLocation) async -> String? {
         let geocoder = CLGeocoder()

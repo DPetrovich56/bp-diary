@@ -388,7 +388,7 @@ struct EntryEditorView: View {
             } header: {
                 Text("Погода")
             } footer: {
-                Text("Температура, атмосферное давление и влажность на момент замера. Данные: Open-Meteo.com.")
+                Text("Температура, атмосферное давление и влажность на момент замера. Данные: Open-Meteo.com, MET Norway.")
             }
         }
     }

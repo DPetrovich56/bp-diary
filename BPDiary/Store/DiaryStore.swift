@@ -12,6 +12,8 @@ final class DiaryStore: ObservableObject {
 
     /// Последняя ошибка обмена со «Здоровьем» (для показа в настройках).
     @Published var healthMessage: String?
+    /// Подпись приложения не содержит разрешения на «Здоровье» (тестовая установка).
+    @Published var healthEntitlementMissing: Bool = false
     /// Уведомления запрещены в системных настройках.
     @Published var notificationsDenied: Bool = false
 
@@ -199,6 +201,7 @@ final class DiaryStore: ObservableObject {
         }
         do {
             try await health.requestAuthorization()
+            healthEntitlementMissing = false
             updateSettings { $0.healthSyncEnabled = true }
             if health.canWriteBloodPressure {
                 healthMessage = nil
@@ -207,7 +210,12 @@ final class DiaryStore: ObservableObject {
             }
             await syncWithHealth()
         } catch {
-            healthMessage = "Не удалось подключить «Здоровье»: \(error.localizedDescription)"
+            if HealthKitService.isMissingEntitlement(error) {
+                healthEntitlementMissing = true
+                healthMessage = "В этой тестовой установке Apple не дала приложению доступ к «Здоровью»: при установке с бесплатным Apple ID такое разрешение не выдаётся. Доступ появится при установке через TestFlight. Остальные функции работают."
+            } else {
+                healthMessage = "Не удалось подключить «Здоровье»: \(error.localizedDescription)"
+            }
         }
     }
 
@@ -369,26 +377,53 @@ final class DiaryStore: ObservableObject {
 
     // MARK: - Погода
 
-    func loadWeather(for date: Date) async throws -> WeatherSnapshot {
+    /// Координаты для погоды: выбранный город или текущая геопозиция.
+    private func weatherPoint() async throws -> (latitude: Double, longitude: Double, place: String?) {
         let settings = data.settings
-        let service = WeatherService()
         if settings.weatherSource == .city {
             guard let city = settings.manualCity else { throw WeatherError.noCity }
-            return try await service.fetch(
-                latitude: city.latitude,
-                longitude: city.longitude,
-                date: date,
-                place: city.name
-            )
+            return (city.latitude, city.longitude, city.name)
         }
         let location = try await LocationProvider.shared.currentLocation()
         let place = await LocationProvider.shared.placeName(for: location)
-        return try await service.fetch(
-            latitude: location.coordinate.latitude,
-            longitude: location.coordinate.longitude,
+        return (location.coordinate.latitude, location.coordinate.longitude, place)
+    }
+
+    func loadWeather(for date: Date) async throws -> WeatherSnapshot {
+        let point = try await weatherPoint()
+        return try await WeatherService().fetch(
+            latitude: point.latitude,
+            longitude: point.longitude,
             date: date,
-            place: place
+            place: point.place
         )
+    }
+
+    /// Проверка каждого источника погоды по отдельности — для экрана настроек.
+    func checkWeatherSources() async -> [String] {
+        let point: (latitude: Double, longitude: Double, place: String?)
+        do {
+            point = try await weatherPoint()
+        } catch {
+            return ["Местоположение: \(error.localizedDescription)"]
+        }
+        var lines: [String] = []
+        let service = WeatherService()
+        for provider in WeatherProvider.allCases {
+            do {
+                let weather = try await service.fetch(
+                    from: provider,
+                    latitude: point.latitude,
+                    longitude: point.longitude,
+                    date: Date(),
+                    place: point.place
+                )
+                lines.append("✅ \(provider.rawValue): \(weather.temperatureTitle), \(weather.pressureTitle)")
+            } catch {
+                lines.append("❌ \(provider.rawValue): \(error.localizedDescription)")
+            }
+        }
+        return lines
     }
 
     // MARK: - Жизненный цикл

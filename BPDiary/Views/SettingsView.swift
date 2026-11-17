@@ -28,6 +28,8 @@ struct SettingsView: View {
     @State private var sharedFile: SharedFile?
     @State private var exportError: String?
     @State private var isSyncing = false
+    @State private var weatherCheckLines: [String] = []
+    @State private var isCheckingWeather = false
 
     var body: some View {
         NavigationStack {
@@ -124,6 +126,7 @@ struct SettingsView: View {
         Section {
             if store.healthAvailable {
                 Toggle("Обмен с приложением «Здоровье»", isOn: healthBinding)
+                    .disabled(store.healthEntitlementMissing)
 
                 if store.settings.healthSyncEnabled {
                     Button {
@@ -191,11 +194,35 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                Button {
+                    isCheckingWeather = true
+                    weatherCheckLines = []
+                    Task {
+                        weatherCheckLines = await store.checkWeatherSources()
+                        isCheckingWeather = false
+                    }
+                } label: {
+                    HStack {
+                        Label("Проверить источники погоды", systemImage: "antenna.radiowaves.left.and.right")
+                        Spacer()
+                        if isCheckingWeather {
+                            ProgressView()
+                        }
+                    }
+                }
+                .disabled(isCheckingWeather)
+
+                ForEach(weatherCheckLines, id: \.self) { line in
+                    Text(verbatim: line)
+                        .font(.footnote)
+                        .textSelection(.enabled)
+                }
             }
         } header: {
             Text("Погода")
         } footer: {
-            Text("Для погоды по геопозиции используется примерное местоположение (с точностью около километра). Данные о погоде предоставляет Open-Meteo.com.")
+            Text("Для погоды по геопозиции используется примерное местоположение (с точностью около километра). Источники: Open-Meteo.com, а если он недоступен — MET Norway (api.met.no). Давление указывается на уровне местности, как в сводках погоды.")
         }
     }
 
@@ -287,8 +314,13 @@ struct SettingsView: View {
             LabeledContent("Версия") {
                 Text(verbatim: appVersion)
             }
-            Button("Источник данных о погоде: Open-Meteo.com") {
+            Button("Погода: Open-Meteo.com") {
                 if let url = URL(string: "https://open-meteo.com/") {
+                    openURL(url)
+                }
+            }
+            Button("Погода: MET Norway") {
+                if let url = URL(string: "https://api.met.no/") {
                     openURL(url)
                 }
             }
@@ -366,7 +398,7 @@ struct CitySearchView: View {
         message = nil
         Task {
             do {
-                let found = try await WeatherService().searchCity(text)
+                let found = try await LocationProvider.shared.searchCity(text)
                 results = found
                 message = found.isEmpty ? "Ничего не найдено. Проверьте название." : nil
             } catch {
