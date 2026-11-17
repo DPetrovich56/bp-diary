@@ -34,7 +34,7 @@ jobs:
   release:
     name: Архив и выгрузка
     runs-on: ${{ inputs.runner || 'macos-26' }}
-    timeout-minutes: 45
+    timeout-minutes: 150
     env:
       TEAM_ID: ${{ vars.TEAM_ID }}
       BUNDLE_ID: ${{ vars.BUNDLE_ID }}

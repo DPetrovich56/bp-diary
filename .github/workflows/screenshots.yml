@@ -18,7 +18,7 @@ jobs:
   screenshots:
     name: Запуск в симуляторе
     runs-on: ${{ inputs.runner || 'macos-26-intel' }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: write
     env:

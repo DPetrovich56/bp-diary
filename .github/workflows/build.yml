@@ -26,7 +26,7 @@ jobs:
     # У GitHub два вида Mac. Для проверки кода подходит любой; по умолчанию берём
     # Intel — очередь на них обычно короче.
     runs-on: ${{ inputs.runner || 'macos-26-intel' }}
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - name: Получить исходный код
         uses: actions/checkout@v6
