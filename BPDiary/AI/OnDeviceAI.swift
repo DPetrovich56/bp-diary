@@ -159,7 +159,7 @@ final class OnDeviceAI: ObservableObject {
                 from: #hubDownloader(hub),
                 using: #huggingFaceTokenizerLoader(),
                 configuration: configuration,
-                progress: .download { progress in
+                progressHandler: { progress in
                     let fraction = progress.fractionCompleted
                     Task { @MainActor in
                         OnDeviceAI.shared.updateDownload(fraction)
