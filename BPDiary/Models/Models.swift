@@ -345,9 +345,10 @@ struct AppSettings: Codable, Hashable {
     var weatherSource: WeatherSource = .location
     var manualCity: ManualCity?
     var snoozeMinutes: Int = 15
+    var ai = AISettings()
 
     enum CodingKeys: String, CodingKey {
-        case onboardingDone, healthSyncEnabled, weatherEnabled, weatherSource, manualCity, snoozeMinutes
+        case onboardingDone, healthSyncEnabled, weatherEnabled, weatherSource, manualCity, snoozeMinutes, ai
     }
 }
 
@@ -360,6 +361,7 @@ extension AppSettings {
         weatherSource = try c.decodeIfPresent(WeatherSource.self, forKey: .weatherSource) ?? .location
         manualCity = try c.decodeIfPresent(ManualCity.self, forKey: .manualCity)
         snoozeMinutes = try c.decodeIfPresent(Int.self, forKey: .snoozeMinutes) ?? 15
+        ai = (try? c.decodeIfPresent(AISettings.self, forKey: .ai)) ?? AISettings()
     }
 }
 

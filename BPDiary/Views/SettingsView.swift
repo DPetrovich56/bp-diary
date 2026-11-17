@@ -40,6 +40,7 @@ struct SettingsView: View {
                     }
                 }
                 remindersSection
+                aiSection
                 healthSection
                 weatherSection
                 reportSection
@@ -118,6 +119,22 @@ struct SettingsView: View {
                 store.updateSettings { $0.snoozeMinutes = newValue }
             }
         )
+    }
+
+    // MARK: - ИИ-помощник
+
+    private var aiSection: some View {
+        Section {
+            NavigationLink {
+                AIServicesView()
+            } label: {
+                LabeledContent("ИИ-помощник") {
+                    Text(verbatim: store.settings.ai.provider.title)
+                }
+            }
+        } footer: {
+            Text("Выбор сервиса для анализа дневника и справок о лекарствах: встроенная модель или облачный сервис.")
+        }
     }
 
     // MARK: - «Здоровье»

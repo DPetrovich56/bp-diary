@@ -15,6 +15,10 @@ struct RootView: View {
                 .tabItem { Label("Лекарства", systemImage: "pills.fill") }
                 .tag(AppTab.medications)
 
+            AssistantView()
+                .tabItem { Label("Помощник", systemImage: "sparkles") }
+                .tag(AppTab.assistant)
+
             StatsView()
                 .tabItem { Label("Графики", systemImage: "chart.xyaxis.line") }
                 .tag(AppTab.stats)

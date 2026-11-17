@@ -18,7 +18,7 @@ jobs:
   screenshots:
     name: Запуск в симуляторе
     runs-on: ${{ inputs.runner || 'macos-26-intel' }}
-    timeout-minutes: 40
+    timeout-minutes: 60
     permissions:
       contents: write
     env:
@@ -32,6 +32,9 @@ jobs:
           if ! command -v xcodegen >/dev/null 2>&1; then
             HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
           fi
+
+      - name: Установить Metal Toolchain
+        run: xcodebuild -downloadComponent MetalToolchain || echo "Metal Toolchain уже установлен или недоступен"
 
       - name: Создать проект Xcode
         run: xcodegen generate
@@ -71,6 +74,8 @@ jobs:
             -configuration Debug \
             -destination "id=$UDID" \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
             | tee "$RUNNER_TEMP/build.log" | tail -n 40
 
       - name: Запустить и снять экраны
@@ -101,6 +106,7 @@ jobs:
           shoot 01-diary -demoTab diary
           shoot 02-medications -demoTab medications
           shoot 03-stats -demoTab stats
+          shoot 06-assistant -demoTab assistant
           shoot 04-settings -demoTab settings
           WAIT=15 shoot 05-new-entry -demoNewEntry
 

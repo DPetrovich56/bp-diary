@@ -26,7 +26,7 @@ jobs:
     # У GitHub два вида Mac. Для проверки кода подходит любой; по умолчанию берём
     # Intel — очередь на них обычно короче.
     runs-on: ${{ inputs.runner || 'macos-26-intel' }}
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Получить исходный код
         uses: actions/checkout@v6
@@ -41,6 +41,9 @@ jobs:
           fi
           xcodegen --version
 
+      - name: Установить Metal Toolchain
+        run: xcodebuild -downloadComponent MetalToolchain || echo "Metal Toolchain уже установлен или недоступен"
+
       - name: Создать проект Xcode
         run: xcodegen generate
 
@@ -53,6 +56,8 @@ jobs:
             -configuration Debug \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             | tee "$RUNNER_TEMP/build.log"
 

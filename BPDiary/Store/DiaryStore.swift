@@ -92,6 +92,12 @@ final class DiaryStore: ObservableObject {
         data.settings = copy
     }
 
+    func updateAI(_ change: (inout AISettings) -> Void) {
+        var copy = data.settings
+        change(&copy.ai)
+        data.settings = copy
+    }
+
     // MARK: - Записи
 
     /// Добавляет новую запись или заменяет существующую с тем же идентификатором.

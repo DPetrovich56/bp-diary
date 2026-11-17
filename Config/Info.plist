@@ -32,6 +32,8 @@
 	<string>Приложение читает замеры давления и пульса из «Здоровья», чтобы показать в дневнике данные тонометра и других приложений.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Приложение сохраняет в «Здоровье» замеры давления и пульса, которые вы вносите в дневник.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Камера нужна, чтобы сфотографировать вкладыш-инструкцию к лекарству. Текст распознаётся на самом iPhone.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Примерная геопозиция нужна, чтобы добавить к замеру погоду: температуру, атмосферное давление и влажность.</string>
 	<key>UIApplicationSceneManifest</key>

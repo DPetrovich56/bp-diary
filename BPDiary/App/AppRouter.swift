@@ -3,6 +3,7 @@ import SwiftUI
 enum AppTab: Hashable {
     case diary
     case medications
+    case assistant
     case stats
     case settings
 }
@@ -22,6 +23,7 @@ final class AppRouter: ObservableObject {
         if let index = arguments.firstIndex(of: "-demoTab"), index + 1 < arguments.count {
             switch arguments[index + 1] {
             case "medications": tab = .medications
+            case "assistant": tab = .assistant
             case "stats": tab = .stats
             case "settings": tab = .settings
             default: tab = .diary

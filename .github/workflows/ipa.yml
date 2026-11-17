@@ -19,7 +19,7 @@ jobs:
   ipa:
     name: Сборка IPA
     runs-on: ${{ inputs.runner || 'macos-26-intel' }}
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: write
     steps:
@@ -31,6 +31,9 @@ jobs:
           if ! command -v xcodegen >/dev/null 2>&1; then
             HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1 brew install xcodegen
           fi
+
+      - name: Установить Metal Toolchain
+        run: xcodebuild -downloadComponent MetalToolchain || echo "Metal Toolchain уже установлен или недоступен"
 
       - name: Создать проект Xcode
         run: xcodegen generate
@@ -48,6 +51,8 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/BPDiary.xcarchive" \
             -derivedDataPath "$RUNNER_TEMP/DerivedData" \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY=- \
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
